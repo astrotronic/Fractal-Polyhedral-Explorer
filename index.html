@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D KIFS Polyhedral Fractal Explorer on JasonHigley.com</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b0d10;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #e2e8f0;
+    }
+    #canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #canvas:active {
+      cursor: grabbing;
+    }
+    /* HUD UI Overlay Layout */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      justify-content: space-between;
+      padding: 24px;
+      gap: 20px;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    #hud.hidden {
+      opacity: 0;
+      transform: scale(0.98);
+      pointer-events: none !important;
+    }
+    .hud-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      max-width: 360px;
+    }
+    .hud-right {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 300px;
+      pointer-events: auto;
+      max-height: 100%;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .hud-right::-webkit-scrollbar {
+      display: none;
+    }
+    .hud-panel {
+      background: rgba(18, 22, 31, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+    .title-group h1 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+    .title-group p {
+      font-size: 0.78rem;
+      color: #94a3b8;
+    }
+    .controls-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+    }
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .key-badge {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #f8fafc;
+      min-width: 22px;
+      text-align: center;
+    }
+    /* Right Sidebar Controls Styling */
+    .controls-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .panel-section-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      margin-top: 4px;
+      margin-bottom: -2px;
+    }
+    .timer-container {
+      width: 100%;
+    }
+    .timer-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #d97706, #f59e0b);
+      transition: width 0.1s linear;
+    }
+    .slider-control {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 0.74rem;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .slider-control input[type=range] {
+      width: 100%;
+      accent-color: #f59e0b;
+      cursor: pointer;
+    }
+    .control-select {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #e2e8f0;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .control-select:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+    }
+    .control-select option {
+      background: #12161f;
+      color: #e2e8f0;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .reseed-btn {
+      background: rgba(217, 119, 6, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+    }
+    .reseed-btn:hover {
+      background: rgba(217, 119, 6, 0.35);
+      border-color: rgba(245, 158, 11, 0.7);
+      color: #fef3c7;
+    }
+    .toggle-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #e2e8f0;
+    }
+    .toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+    }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.74rem;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+    }
+    .status-dot.active {
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="canvas"></canvas>
+
+  <div id="hud">
+    <!-- Left Hand Side: Title & Controls Legend -->
+    <div class="hud-left">
+      <div class="hud-panel title-group">
+        <h1>Polyhedral Explorer - Free on JasonHigley.com</h1>
+        <p>Raymarched 3D Iterated Function System • Polyhedral Geometries &amp; Post Shaders</p>
+      </div>
+
+      <div class="hud-panel controls-legend">
+        <div class="legend-row">
+          <span class="key-badge">H</span>
+          <span>Toggle HUD Overlay</span>
+        </div>
+        <div class="legend-row">
+          <span class="key-badge">Mouse / WASD</span>
+          <span>Left Drag: Pitch/Yaw • Scroll: Zoom • WASD: Fly</span>
+        </div>
+        <div class="legend-row">
+          <span class="key-badge">Xbox</span>
+          <span>Left Stick: Move • Right Stick: Look • LT/RT: Elevate</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Hand Side: Stacked Controls & Post Processing Sidebar -->
+    <div class="hud-right">
+      <div class="hud-panel controls-stack">
+        <!-- Seed Morph Section -->
+        <span class="panel-section-title">Seed Morph Control</span>
+        <div class="timer-container">
+          <div class="timer-label">
+            <span>Next Seed Morph</span>
+            <span id="timer-text">60s</span>
+          </div>
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+        </div>
+
+        <button id="toggle-seed-btn" class="action-btn toggle-btn">Pause Seed Morph</button>
+        <button id="reseed-btn" class="action-btn reseed-btn">Morph Seed Now</button>
+
+        <!-- View & Motion Section -->
+        <span class="panel-section-title">Camera &amp; Motion</span>
+        <button id="toggle-rot-btn" class="action-btn toggle-btn">Pause Rotation</button>
+
+        <div class="slider-control">
+          <div class="slider-header">
+            <span>Rotation Speed</span>
+            <span id="rot-speed-val">0.12</span>
+          </div>
+          <input type="range" id="rot-speed-slider" min="0.0" max="0.35" step="0.01" value="0.12">
+        </div>
+
+        <!-- Rendering & Aesthetics -->
+        <span class="panel-section-title">Aesthetics &amp; Lighting</span>
+        <div class="slider-control">
+          <div class="slider-header">
+            <span>Brightness</span>
+            <span id="brightness-val">1.00</span>
+          </div>
+          <input type="range" id="brightness-slider" min="0.2" max="2.5" step="0.05" value="1.0">
+        </div>
+
+        <select id="color-scheme-select" class="control-select">
+          <option value="0">Palette: Natural Mineral</option>
+          <option value="1">Palette: Multicolor Vibrant</option>
+          <option value="2">Palette: Grayscale</option>
+        </select>
+
+        <!-- Post-Processing Shader FX -->
+        <span class="panel-section-title">Post-Processing Shaders</span>
+        
+        <select id="tonemap-select" class="control-select">
+          <option value="1">Tonemap: ACES Filmic</option>
+          <option value="0">Tonemap: Standard Gamma</option>
+          <option value="2">Tonemap: High Contrast</option>
+        </select>
+
+        <div class="slider-control">
+          <div class="slider-header">
+            <span>Edge / Outline</span>
+            <span id="edge-val">0.35</span>
+          </div>
+          <input type="range" id="edge-slider" min="0.0" max="1.0" step="0.05" value="0.35">
+        </div>
+
+        <div class="slider-control">
+          <div class="slider-header">
+            <span>Chroma Aberration</span>
+            <span id="chroma-val">0.25</span>
+          </div>
+          <input type="range" id="chroma-slider" min="0.0" max="1.0" step="0.05" value="0.25">
+        </div>
+
+        <div class="slider-control">
+          <div class="slider-header">
+            <span>Film Grain</span>
+            <span id="grain-val">0.25</span>
+          </div>
+          <input type="range" id="grain-slider" min="0.0" max="1.0" step="0.05" value="0.25">
+        </div>
+
+        <!-- Device Status -->
+        <div class="status-badge">
+          <div id="gamepad-dot" class="status-dot"></div>
+          <span id="gamepad-text">Xbox Gamepad Disconnected</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- WebGL Shaders ---
+    const vsSource = `
+      attribute vec2 a_position;
+      void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+      }
+    `;
+
+    const fsSource = `
+      precision highp float;
+
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform vec3 u_camPos;
+      uniform vec3 u_camTarget;
+      
+      uniform vec3 u_foldRot;
+      uniform vec3 u_foldOffset;
+      uniform float u_scale;
+      uniform float u_shapeType;   // 0.0 = Sphere, 1.0 = Box/Cube, 2.0 = Octahedron
+      uniform float u_colorScheme; // 0.0 = Natural Mineral, 1.0 = Multicolor Vibrant, 2.0 = Grayscale
+      uniform float u_brightness;  // Overall scene exposure/brightness multiplier
+
+      // Post-Processing Shader Uniforms
+      uniform float u_edgeStrength;
+      uniform float u_chroma;
+      uniform float u_filmGrain;
+      uniform float u_tonemap;
+
+      #define MAX_STEPS 140
+      #define SURF_DIST 0.0015
+      #define MAX_DIST 22.0
+
+      vec4 g_orbitTrap;
+
+      mat3 rotateX(float angle) {
+        float c = cos(angle), s = sin(angle);
+        return mat3(1.0, 0.0, 0.0,  0.0, c, -s,  0.0, s, c);
+      }
+      mat3 rotateY(float angle) {
+        float c = cos(angle), s = sin(angle);
+        return mat3(c, 0.0, s,  0.0, 1.0, 0.0,  -s, 0.0, c);
+      }
+      mat3 rotateZ(float angle) {
+        float c = cos(angle), s = sin(angle);
+        return mat3(c, -s, 0.0,  s, c, 0.0,  0.0, 0.0, 1.0);
+      }
+
+      // Robust Bounded Noise Generator for Dynamic Film Grain Shader
+      float grainNoise(vec2 uv, float time) {
+        vec2 seed = uv * 0.1 + vec2(fract(time * 13.1), fract(time * 37.3));
+        return (fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453) - 0.5);
+      }
+
+      // ACES Filmic Tonemapping Curve
+      vec3 acesTonemap(vec3 x) {
+        float a = 2.51;
+        float b = 0.03;
+        float c = 2.43;
+        float d = 0.59;
+        float e = 0.14;
+        return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+      }
+
+      // Hard-edged Box Primitive SDF
+      float sdBox(vec3 p, vec3 b) {
+        vec3 q = abs(p) - b;
+        return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+      }
+
+      // Sharp Octahedron Primitive SDF
+      float sdOctahedron(vec3 p, float s) {
+        p = abs(p);
+        return (p.x + p.y + p.z - s) * 0.57735027;
+      }
+
+      // KIFS Distance Estimator
+      float map(vec3 p) {
+        float s = 1.0;
+        g_orbitTrap = vec4(100.0);
+
+        mat3 rot = rotateZ(u_foldRot.z) * rotateY(u_foldRot.y) * rotateX(u_foldRot.x);
+
+        for (int i = 0; i < 6; i++) {
+          p = abs(p); // Folding reflections
+          
+          if (p.x - p.y < 0.0) { float t = p.x; p.x = p.y; p.y = t; }
+          if (p.x - p.z < 0.0) { float t = p.x; p.x = p.z; p.z = t; }
+          if (p.y - p.z < 0.0) { float t = p.y; p.y = p.z; p.z = t; }
+
+          p = rot * p;
+          p = p * u_scale - u_foldOffset * (u_scale - 1.0);
+          s *= u_scale;
+
+          g_orbitTrap = min(g_orbitTrap, vec4(abs(p), length(p)));
+        }
+
+        // Base primitive blending
+        float dSphere = length(p) - 1.5;
+        float dBox = sdBox(p, vec3(1.15));
+        float dOcta = sdOctahedron(p, 1.4);
+
+        float baseDist;
+        if (u_shapeType < 1.0) {
+          baseDist = mix(dSphere, dBox, u_shapeType);
+        } else {
+          baseDist = mix(dBox, dOcta, u_shapeType - 1.0);
+        }
+
+        return baseDist / s;
+      }
+
+      vec3 calcNormal(vec3 p) {
+        vec2 e = vec2(0.0015, 0.0);
+        return normalize(vec3(
+          map(p + e.xyy) - map(p - e.xyy),
+          map(p + e.yxy) - map(p - e.yxy),
+          map(p + e.yyx) - map(p - e.yyx)
+        ));
+      }
+
+      float calcAO(vec3 p, vec3 n) {
+        float ao = 0.0;
+        float sca = 1.0;
+        for (int i = 0; i < 5; i++) {
+          float hr = 0.01 + 0.03 * float(i);
+          float d = map(p + n * hr);
+          ao += (hr - d) * sca;
+          sca *= 0.75;
+        }
+        return clamp(1.0 - 3.5 * ao, 0.0, 1.0);
+      }
+
+      void main() {
+        vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+
+        // Camera setup with UP vector singularity guard
+        vec3 ro = u_camPos;
+        vec3 forward = normalize(u_camTarget - ro);
+        vec3 upVec = vec3(0.0, 1.0, 0.0);
+        if (abs(forward.y) > 0.98) {
+          upVec = vec3(0.0, 0.0, 1.0);
+        }
+        vec3 right = normalize(cross(upVec, forward));
+        vec3 up = cross(forward, right);
+        vec3 rd = normalize(uv.x * right + uv.y * up + 1.2 * forward);
+
+        // Raymarching Loop
+        float d = 0.0;
+        vec4 hitTrap = vec4(0.0);
+        bool hit = false;
+
+        for (int i = 0; i < MAX_STEPS; i++) {
+          vec3 p = ro + rd * d;
+          float dist = map(p);
+          if (dist < SURF_DIST) {
+            hit = true;
+            hitTrap = g_orbitTrap;
+            break;
+          }
+          d += dist * 0.45;
+          if (d > MAX_DIST) break;
+        }
+
+        vec3 col = vec3(0.07, 0.08, 0.10); // Slate fog background
+
+        if (hit) {
+          vec3 p = ro + rd * d;
+          vec3 n = calcNormal(p);
+          float ao = calcAO(p, n);
+
+          vec3 matColor = vec3(0.5);
+
+          if (u_colorScheme < 0.5) {
+            // 0. Natural Mineral Palette (Slate, Bronze, Patina, Terracotta)
+            vec3 slate = vec3(0.32, 0.35, 0.40);
+            vec3 bronze = vec3(0.58, 0.44, 0.28);
+            vec3 patina = vec3(0.25, 0.48, 0.40);
+            vec3 terracotta = vec3(0.60, 0.35, 0.22);
+
+            matColor = mix(slate, bronze, clamp(hitTrap.w * 0.25, 0.0, 1.0));
+            matColor = mix(matColor, patina, clamp(hitTrap.x * 0.6, 0.0, 1.0));
+            matColor = mix(matColor, terracotta, clamp(hitTrap.y * 0.5, 0.0, 1.0));
+          } else if (u_colorScheme < 1.5) {
+            // 1. Multicolor Vibrant Palette (Rich Spectral Jewel Tones)
+            vec3 sapphire = vec3(0.12, 0.42, 0.88);
+            vec3 ruby = vec3(0.88, 0.18, 0.38);
+            vec3 amber = vec3(0.95, 0.62, 0.12);
+            vec3 emerald = vec3(0.12, 0.78, 0.48);
+
+            matColor = mix(sapphire, ruby, clamp(hitTrap.w * 0.35, 0.0, 1.0));
+            matColor = mix(matColor, amber, clamp(hitTrap.x * 0.65, 0.0, 1.0));
+            matColor = mix(matColor, emerald, clamp(hitTrap.y * 0.55, 0.0, 1.0));
+          } else {
+            // 2. Grayscale / Monochrome Polish
+            float tone = clamp(hitTrap.w * 0.25 + hitTrap.x * 0.35, 0.0, 1.0);
+            matColor = vec3(0.22 + 0.52 * tone);
+          }
+
+          // Lighting
+          vec3 sunDir = normalize(vec3(0.6, 0.8, -0.5));
+          vec3 skyDir = vec3(0.0, 1.0, 0.0);
+
+          vec3 sunColor = vec3(1.0, 0.92, 0.80) * 1.3;
+          vec3 skyColor = vec3(0.40, 0.52, 0.68) * 0.6;
+
+          if (u_colorScheme > 1.5) {
+            sunColor = vec3(1.1);
+            skyColor = vec3(0.5);
+          }
+
+          float diffSun = max(0.0, dot(n, sunDir));
+          float diffSky = max(0.0, dot(n, skyDir)) * 0.5 + 0.5;
+
+          vec3 ref = reflect(-sunDir, n);
+          float spec = pow(max(0.0, dot(ref, -rd)), 16.0) * 0.35;
+
+          col = matColor * (sunColor * diffSun + skyColor * diffSky) + sunColor * spec;
+          col *= ao;
+
+          // POST-PROCESSING 1: Edge & Crevice Detection Outline Shader
+          if (u_edgeStrength > 0.001) {
+            vec3 nR = calcNormal(p + right * 0.004);
+            vec3 nU = calcNormal(p + up * 0.004);
+            float diffR = length(n - nR);
+            float diffU = length(n - nU);
+            float edge = clamp((diffR + diffU) * 1.8, 0.0, 1.0);
+            col = mix(col, vec3(0.01, 0.01, 0.02), edge * u_edgeStrength);
+          }
+
+          // Distance Fog
+          float fog = 1.0 - exp(-0.04 * d * d);
+          col = mix(col, vec3(0.07, 0.08, 0.10), fog);
+        }
+
+        // Apply Exposure & Brightness
+        col *= u_brightness;
+
+        // POST-PROCESSING 2: Chromatic Aberration Dispersion
+        if (u_chroma > 0.001) {
+          float distUV = length(uv);
+          float shift = distUV * u_chroma * 0.15;
+          col.r *= (1.0 + shift);
+          col.b *= clamp(1.0 - shift, 0.0, 1.0);
+        }
+
+        // POST-PROCESSING 3: Tonemapping Shader
+        if (u_tonemap > 0.5 && u_tonemap < 1.5) {
+          col = acesTonemap(col);
+        } else if (u_tonemap > 1.5) {
+          col = pow(max(vec3(0.0), col), vec3(1.15));
+          col = mix(col, col * col * (3.0 - 2.0 * col), 0.4);
+        } else {
+          col = pow(max(vec3(0.0), col), vec3(0.85));
+        }
+
+        // POST-PROCESSING 4: Film Grain Overlay
+        if (u_filmGrain > 0.001) {
+          float grain = grainNoise(gl_FragCoord.xy, u_time);
+          col += grain * 0.22 * u_filmGrain;
+        }
+
+        // Vignette
+        float vignette = 1.0 - length(uv * 0.55);
+        col *= clamp(vignette, 0.0, 1.0);
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    // --- WebGL Context Setup ---
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl', { powerPreference: "high-performance", antialias: false });
+
+    if (!gl) {
+      alert("WebGL is not supported in your browser.");
+    }
+
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error("Shader Compile Error:", gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    const vertShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+    const fragShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vertShader);
+    gl.attachShader(program, fragShader);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error("Program Link Error:", gl.getProgramInfoLog(program));
+    }
+
+    gl.useProgram(program);
+
+    // Quad Geometry
+    const quadBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1,  1, -1, -1,  1,
+      -1,  1,  1, -1,  1,  1
+    ]), gl.STATIC_DRAW);
+
+    const aPosLoc = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(aPosLoc);
+    gl.vertexAttribPointer(aPosLoc, 2, gl.FLOAT, false, 0, 0);
+
+    // Uniform Locations
+    const uResLoc = gl.getUniformLocation(program, "u_resolution");
+    const uTimeLoc = gl.getUniformLocation(program, "u_time");
+    const uCamPosLoc = gl.getUniformLocation(program, "u_camPos");
+    const uCamTargetLoc = gl.getUniformLocation(program, "u_camTarget");
+    const uFoldRotLoc = gl.getUniformLocation(program, "u_foldRot");
+    const uFoldOffsetLoc = gl.getUniformLocation(program, "u_foldOffset");
+    const uScaleLoc = gl.getUniformLocation(program, "u_scale");
+    const uShapeTypeLoc = gl.getUniformLocation(program, "u_shapeType");
+    const uColorSchemeLoc = gl.getUniformLocation(program, "u_colorScheme");
+    const uBrightnessLoc = gl.getUniformLocation(program, "u_brightness");
+
+    // Post-Processing Uniform Locations
+    const uEdgeStrengthLoc = gl.getUniformLocation(program, "u_edgeStrength");
+    const uChromaLoc = gl.getUniformLocation(program, "u_chroma");
+    const uFilmGrainLoc = gl.getUniformLocation(program, "u_filmGrain");
+    const uTonemapLoc = gl.getUniformLocation(program, "u_tonemap");
+
+    // --- KIFS Topology Seed Management ---
+    let currentSeed = {
+      rot: [0.35, 0.65, 0.15],
+      offset: [0.75, 0.85, 0.70],
+      scale: 1.85,
+      shapeType: 1.0
+    };
+
+    let targetSeed = { ...currentSeed };
+    const SEED_INTERVAL = 60; // 60s
+    let seedTimer = SEED_INTERVAL;
+    let isSeedPaused = false;
+    let lastTime = performance.now();
+
+    function generateRandomSeed() {
+      return {
+        rot: [
+          (Math.random() - 0.5) * 0.8,
+          (Math.random() - 0.5) * 0.8,
+          (Math.random() - 0.5) * 0.8
+        ],
+        offset: [
+          0.65 + Math.random() * 0.25,
+          0.65 + Math.random() * 0.25,
+          0.65 + Math.random() * 0.25
+        ],
+        scale: 1.75 + Math.random() * 0.2,
+        shapeType: Math.random() * 2.0
+      };
+    }
+
+    function triggerReseed() {
+      targetSeed = generateRandomSeed();
+      seedTimer = SEED_INTERVAL;
+    }
+
+    // Seed Pause & Manual Trigger Buttons
+    const toggleSeedBtn = document.getElementById('toggle-seed-btn');
+    toggleSeedBtn.addEventListener('click', () => {
+      isSeedPaused = !isSeedPaused;
+      toggleSeedBtn.innerText = isSeedPaused ? "Resume Seed Morph" : "Pause Seed Morph";
+    });
+
+    document.getElementById('reseed-btn').addEventListener('click', triggerReseed);
+
+    // --- Rotation Speed, Brightness & Post FX Controls ---
+    let isRotating = true;
+    let orbitAngle = 0.0;
+    let rotationSpeed = 0.12;
+    let brightness = 1.0;
+
+    // Post FX State
+    let edgeStrength = 0.35;
+    let chromaStrength = 0.25;
+    let grainStrength = 0.25;
+    let tonemapType = 1.0; // 1.0 = ACES Filmic
+
+    const rotSpeedVal = document.getElementById('rot-speed-val');
+    document.getElementById('rot-speed-slider').addEventListener('input', (e) => {
+      rotationSpeed = parseFloat(e.target.value);
+      rotSpeedVal.innerText = rotationSpeed.toFixed(2);
+    });
+
+    const brightnessVal = document.getElementById('brightness-val');
+    document.getElementById('brightness-slider').addEventListener('input', (e) => {
+      brightness = parseFloat(e.target.value);
+      brightnessVal.innerText = brightness.toFixed(2);
+    });
+
+    const edgeVal = document.getElementById('edge-val');
+    document.getElementById('edge-slider').addEventListener('input', (e) => {
+      edgeStrength = parseFloat(e.target.value);
+      edgeVal.innerText = edgeStrength.toFixed(2);
+    });
+
+    const chromaVal = document.getElementById('chroma-val');
+    document.getElementById('chroma-slider').addEventListener('input', (e) => {
+      chromaStrength = parseFloat(e.target.value);
+      chromaVal.innerText = chromaStrength.toFixed(2);
+    });
+
+    const grainVal = document.getElementById('grain-val');
+    document.getElementById('grain-slider').addEventListener('input', (e) => {
+      grainStrength = parseFloat(e.target.value);
+      grainVal.innerText = grainStrength.toFixed(2);
+    });
+
+    document.getElementById('tonemap-select').addEventListener('change', (e) => {
+      tonemapType = parseFloat(e.target.value);
+    });
+
+    const toggleRotBtn = document.getElementById('toggle-rot-btn');
+    toggleRotBtn.addEventListener('click', () => {
+      isRotating = !isRotating;
+      toggleRotBtn.innerText = isRotating ? "Pause Rotation" : "Start Rotation";
+    });
+
+    // --- Color Scheme Select ---
+    let colorScheme = 0.0;
+    document.getElementById('color-scheme-select').addEventListener('change', (e) => {
+      colorScheme = parseFloat(e.target.value);
+    });
+
+    // --- Flight & Camera Controls ---
+    let manualYaw = 0.0;
+    let manualPitch = 0.0;
+    let manualPos = { x: 0, y: 0, z: 0 };
+    let flightSpeedMultiplier = 1.0;
+    let isDragging = false;
+    let lastMouseX = 0, lastMouseY = 0;
+    const keysPressed = {};
+
+    // Mouse Controls
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        isDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      }
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    window.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+        manualYaw += dx * 0.003;
+        manualPitch -= dy * 0.003;
+        manualPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, manualPitch));
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      flightSpeedMultiplier += e.deltaY * -0.001;
+      flightSpeedMultiplier = Math.max(0.2, Math.min(3.0, flightSpeedMultiplier));
+    }, { passive: false });
+
+    // WASD Keys & HUD Overlay 'H' Key
+    const hud = document.getElementById('hud');
+    window.addEventListener('keydown', (e) => {
+      keysPressed[e.key.toLowerCase()] = true;
+      if (e.key === 'h' || e.key === 'H') {
+        hud.classList.toggle('hidden');
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keysPressed[e.key.toLowerCase()] = false;
+    });
+
+    function processKeyboard(dt) {
+      const speed = 1.8 * dt * flightSpeedMultiplier;
+      const cosY = Math.cos(manualYaw);
+      const sinY = Math.sin(manualYaw);
+
+      if (keysPressed['w']) { manualPos.x += sinY * speed; manualPos.z -= cosY * speed; }
+      if (keysPressed['s']) { manualPos.x -= sinY * speed; manualPos.z += cosY * speed; }
+      if (keysPressed['a']) { manualPos.x -= cosY * speed; manualPos.z -= sinY * speed; }
+      if (keysPressed['d']) { manualPos.x += cosY * speed; manualPos.z += sinY * speed; }
+      if (keysPressed['q']) { manualPos.y -= speed; }
+      if (keysPressed['e']) { manualPos.y += speed; }
+    }
+
+    // Xbox Gamepad API
+    const gamepadDot = document.getElementById('gamepad-dot');
+    const gamepadText = document.getElementById('gamepad-text');
+
+    function updateGamepad(dt) {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let found = false;
+
+      for (let i = 0; i < gamepads.length; i++) {
+        const gp = gamepads[i];
+        if (gp && gp.connected) {
+          found = true;
+          gamepadDot.classList.add('active');
+          gamepadText.innerText = `Xbox Controller Active (${gp.id.split(' ')[0]})`;
+
+          const dz = 0.12;
+          let lx = Math.abs(gp.axes[0]) > dz ? gp.axes[0] : 0;
+          let ly = Math.abs(gp.axes[1]) > dz ? gp.axes[1] : 0;
+          let rx = Math.abs(gp.axes[2]) > dz ? gp.axes[2] : 0;
+          let ry = Math.abs(gp.axes[3]) > dz ? gp.axes[3] : 0;
+
+          let lt = gp.buttons[6] ? gp.buttons[6].value : 0;
+          let rt = gp.buttons[7] ? gp.buttons[7].value : 0;
+
+          manualYaw += rx * 1.5 * dt;
+          manualPitch -= ry * 1.5 * dt;
+          manualPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, manualPitch));
+
+          let speed = 2.0 * dt * flightSpeedMultiplier;
+          let cosY = Math.cos(manualYaw);
+          let sinY = Math.sin(manualYaw);
+
+          manualPos.x += (lx * cosY - ly * sinY) * speed;
+          manualPos.z += (lx * sinY + ly * cosY) * speed;
+          manualPos.y += (rt - lt) * speed;
+
+          break;
+        }
+      }
+
+      if (!found) {
+        gamepadDot.classList.remove('active');
+        gamepadText.innerText = 'Xbox Gamepad Disconnected';
+      }
+    }
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- Main Render Loop ---
+    const progressFill = document.getElementById('progress-fill');
+    const timerText = document.getElementById('timer-text');
+
+    function render(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
+      // Seed Countdown
+      if (!isSeedPaused) {
+        seedTimer -= dt;
+        if (seedTimer <= 0) {
+          triggerReseed();
+        }
+      }
+
+      progressFill.style.width = `${Math.max(0, (seedTimer / SEED_INTERVAL) * 100)}%`;
+      timerText.innerText = isSeedPaused ? "Paused" : `${Math.ceil(Math.max(0, seedTimer))}s`;
+
+      // Interpolate Seed Topology Morphing
+      const lerpFactor = 0.03;
+      for (let i = 0; i < 3; i++) {
+        currentSeed.rot[i] += (targetSeed.rot[i] - currentSeed.rot[i]) * lerpFactor;
+        currentSeed.offset[i] += (targetSeed.offset[i] - currentSeed.offset[i]) * lerpFactor;
+      }
+      currentSeed.scale += (targetSeed.scale - currentSeed.scale) * lerpFactor;
+      currentSeed.shapeType += (targetSeed.shapeType - currentSeed.shapeType) * lerpFactor;
+
+      // Orbit Rotation
+      if (isRotating) {
+        orbitAngle += dt * rotationSpeed;
+      }
+
+      processKeyboard(dt);
+      updateGamepad(dt);
+
+      // Camera Orbit distance set to 3.2
+      const radius = 3.2;
+      const autoCamX = Math.sin(orbitAngle) * radius;
+      const autoCamY = 0.4;
+      const autoCamZ = Math.cos(orbitAngle) * radius;
+
+      const camPos = [
+        autoCamX + manualPos.x,
+        autoCamY + manualPos.y,
+        autoCamZ + manualPos.z
+      ];
+
+      // Point camera toward origin (0,0,0)
+      const toOrigin = [-camPos[0], -camPos[1], -camPos[2]];
+      const distToOrigin = Math.sqrt(toOrigin[0]*toOrigin[0] + toOrigin[1]*toOrigin[1] + toOrigin[2]*toOrigin[2]);
+      const baseDir = [toOrigin[0] / distToOrigin, toOrigin[1] / distToOrigin, toOrigin[2] / distToOrigin];
+
+      const baseYaw = Math.atan2(baseDir[0], baseDir[2]);
+      const basePitch = Math.asin(Math.max(-0.99, Math.min(0.99, baseDir[1])));
+
+      const totalYaw = baseYaw + manualYaw;
+      const totalPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, basePitch + manualPitch));
+
+      const forwardDist = 2.0;
+      const targetDir = [
+        Math.sin(totalYaw) * Math.cos(totalPitch),
+        Math.sin(totalPitch),
+        Math.cos(totalYaw) * Math.cos(totalPitch)
+      ];
+
+      const targetX = camPos[0] + targetDir[0] * forwardDist;
+      const targetY = camPos[1] + targetDir[1] * forwardDist;
+      const targetZ = camPos[2] + targetDir[2] * forwardDist;
+
+      // Uniform Binds
+      gl.uniform2f(uResLoc, canvas.width, canvas.height);
+      gl.uniform1f(uTimeLoc, now * 0.001);
+      gl.uniform3fv(uCamPosLoc, camPos);
+      gl.uniform3f(uCamTargetLoc, targetX, targetY, targetZ);
+      gl.uniform3fv(uFoldRotLoc, currentSeed.rot);
+      gl.uniform3fv(uFoldOffsetLoc, currentSeed.offset);
+      gl.uniform1f(uScaleLoc, currentSeed.scale);
+      gl.uniform1f(uShapeTypeLoc, currentSeed.shapeType);
+      gl.uniform1f(uColorSchemeLoc, colorScheme);
+      gl.uniform1f(uBrightnessLoc, brightness);
+
+      // Post Processing Uniform Binds
+      gl.uniform1f(uEdgeStrengthLoc, edgeStrength);
+      gl.uniform1f(uChromaLoc, chromaStrength);
+      gl.uniform1f(uFilmGrainLoc, grainStrength);
+      gl.uniform1f(uTonemapLoc, tonemapType);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
